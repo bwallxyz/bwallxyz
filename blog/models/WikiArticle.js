@@ -1,7 +1,7 @@
-// models/BlogPost.js
+// models/WikiArticle.js
 import mongoose from "mongoose";
 
-const BlogPostSchema = new mongoose.Schema({
+const WikiArticleSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -18,13 +18,10 @@ const BlogPostSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  excerpt: {
+  category: {
     type: String,
     required: true,
-  },
-  coverImage: {
-    type: String,
-    default: "",
+    trim: true,
   },
   tags: {
     type: [String],
@@ -49,4 +46,4 @@ const BlogPostSchema = new mongoose.Schema({
   },
 });
 
-export default mongoose.models.BlogPost || mongoose.model("BlogPost", BlogPostSchema);
+export default mongoose.models.WikiArticle || mongoose.model("WikiArticle", WikiArticleSchema);
