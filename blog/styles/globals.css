@@ -1,0 +1,86 @@
+/* Tailwind directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add custom styles below */
+@layer components {
+  .prose {
+    @apply max-w-none;
+  }
+  
+  .prose pre {
+    @apply bg-gray-800 text-white p-4 rounded-md overflow-x-auto;
+  }
+  
+  .prose code {
+    @apply text-gray-800 bg-gray-100 px-1 py-0.5 rounded;
+  }
+  
+  .prose pre code {
+    @apply text-white bg-transparent p-0;
+  }
+  
+  .prose h1 {
+    @apply text-3xl font-bold mt-8 mb-4;
+  }
+  
+  .prose h2 {
+    @apply text-2xl font-semibold mt-8 mb-4;
+  }
+  
+  .prose h3 {
+    @apply text-xl font-semibold mt-6 mb-3;
+  }
+  
+  .prose p {
+    @apply mb-4;
+  }
+  
+  .prose ul {
+    @apply list-disc pl-6 mb-4;
+  }
+  
+  .prose ol {
+    @apply list-decimal pl-6 mb-4;
+  }
+  
+  .prose blockquote {
+    @apply border-l-4 border-gray-300 pl-4 italic;
+  }
+  
+  .prose a {
+    @apply text-indigo-600 hover:text-indigo-800 font-medium;
+  }
+  
+  .prose img {
+    @apply rounded-lg my-6;
+  }
+  
+  .prose table {
+    @apply w-full border-collapse my-6;
+  }
+  
+  .prose table th {
+    @apply px-4 py-2 border border-gray-300 bg-gray-50 font-semibold;
+  }
+  
+  .prose table td {
+    @apply px-4 py-2 border border-gray-300;
+  }
+}
+
+/* Mobile responsiveness adjustments */
+@media (max-width: 640px) {
+  .prose h1 {
+    @apply text-2xl;
+  }
+  
+  .prose h2 {
+    @apply text-xl;
+  }
+  
+  .prose h3 {
+    @apply text-lg;
+  }
+}
