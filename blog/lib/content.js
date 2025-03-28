@@ -3,13 +3,25 @@ import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 import { connectToDatabase } from "./db";
+import { serialize } from 'next-mdx-remote/serialize';
+import { remark } from 'remark';
+import html from 'remark-html';
+
+// Import all models to ensure they're registered
+import "../models/User";
 import BlogPost from "../models/BlogPost";
 import WikiArticle from "../models/WikiArticle";
 
-export async function getAllBlogPosts() {
+// Ensure all models are registered before use
+async function ensureModelsRegistered() {
   await connectToDatabase();
+  // Additional initialization if needed
+}
+
+export async function getAllBlogPosts() {
+  await ensureModelsRegistered();
   
-  const posts = await BlogPost.find({ published: true })
+  const posts = await BlogPost.find()
     .sort({ createdAt: -1 })
     .populate("author", "name")
     .lean();
@@ -18,9 +30,9 @@ export async function getAllBlogPosts() {
 }
 
 export async function getBlogPostBySlug(slug) {
-  await connectToDatabase();
+  await ensureModelsRegistered();
   
-  const post = await BlogPost.findOne({ slug, published: true })
+  const post = await BlogPost.findOne({ slug })
     .populate("author", "name")
     .lean();
   
@@ -28,9 +40,9 @@ export async function getBlogPostBySlug(slug) {
 }
 
 export async function getAllWikiArticles() {
-  await connectToDatabase();
+  await ensureModelsRegistered();
   
-  const articles = await WikiArticle.find({ published: true })
+  const articles = await WikiArticle.find()
     .sort({ category: 1, title: 1 })
     .populate("author", "name")
     .lean();
@@ -39,9 +51,9 @@ export async function getAllWikiArticles() {
 }
 
 export async function getWikiArticleBySlug(slug) {
-  await connectToDatabase();
+  await ensureModelsRegistered();
   
-  const article = await WikiArticle.findOne({ slug, published: true })
+  const article = await WikiArticle.findOne({ slug })
     .populate("author", "name")
     .lean();
   
@@ -49,7 +61,7 @@ export async function getWikiArticleBySlug(slug) {
 }
 
 export async function getWikiCategories() {
-  await connectToDatabase();
+  await ensureModelsRegistered();
   
   const categories = await WikiArticle.aggregate([
     { $match: { published: true } },
@@ -74,8 +86,6 @@ export function slugify(title) {
 // Function to convert markdown to MDX
 export async function markdownToMdx(content) {
   // Import these dynamically only when needed to avoid server/client mismatch
-  const { serialize } = await import('next-mdx-remote/serialize');
-  
   return serialize(content, {
     mdxOptions: {
       remarkPlugins: [],
@@ -87,9 +97,6 @@ export async function markdownToMdx(content) {
 // Function to convert markdown to HTML
 export async function markdownToHtml(markdown) {
   // Import these dynamically only when needed
-  const { remark } = await import('remark');
-  const html = await import('remark-html');
-  
   const result = await remark().use(html).process(markdown);
   return result.toString();
 }
