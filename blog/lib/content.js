@@ -1,37 +1,3 @@
-// lib/db.js
-import mongoose from "mongoose";
-
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define the MONGODB_URI environment variable");
-}
-
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-export async function connectToDatabase() {
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
-  }
-  cached.conn = await cached.promise;
-  return cached.conn;
-}
-
 // lib/content.js
 import fs from "fs";
 import path from "path";
@@ -103,4 +69,27 @@ export function slugify(title) {
     .toLowerCase()
     .replace(/[^\w ]+/g, '')
     .replace(/ +/g, '-');
+}
+
+// Function to convert markdown to MDX
+export async function markdownToMdx(content) {
+  // Import these dynamically only when needed to avoid server/client mismatch
+  const { serialize } = await import('next-mdx-remote/serialize');
+  
+  return serialize(content, {
+    mdxOptions: {
+      remarkPlugins: [],
+      rehypePlugins: [],
+    },
+  });
+}
+
+// Function to convert markdown to HTML
+export async function markdownToHtml(markdown) {
+  // Import these dynamically only when needed
+  const { remark } = await import('remark');
+  const html = await import('remark-html');
+  
+  const result = await remark().use(html).process(markdown);
+  return result.toString();
 }
