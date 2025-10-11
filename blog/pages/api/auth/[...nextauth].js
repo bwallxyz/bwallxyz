@@ -1,8 +1,7 @@
 // pages/api/auth/[...nextauth].js
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { connectToDatabase } from "../../../lib/db";
-import User from "../../../models/User";
+import { supabase } from "../../../lib/supabase";
 import { compare } from "bcryptjs";
 
 export const authOptions = {
@@ -16,28 +15,29 @@ export const authOptions = {
       },
       async authorize(credentials) {
         try {
-          // Connect to the database
-          await connectToDatabase();
-          
           // Find the user by email
-          const user = await User.findOne({ email: credentials.email });
-          
+          const { data: user, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', credentials.email)
+            .single();
+
           // If no user found, return null (which will trigger a login error)
-          if (!user) {
+          if (error || !user) {
             return null;
           }
-          
+
           // Check if the password is correct
           const isValid = await compare(credentials.password, user.password);
-          
+
           // If password doesn't match, return null
           if (!isValid) {
             return null;
           }
-          
+
           // Return the user object (without the password)
           return {
-            id: user._id.toString(),
+            id: user.id,
             email: user.email,
             name: user.name,
             role: user.role

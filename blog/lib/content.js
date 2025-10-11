@@ -2,77 +2,86 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { connectToDatabase } from "./db";
+import { supabase } from "./supabase";
 import { serialize } from 'next-mdx-remote/serialize';
 import { remark } from 'remark';
 import html from 'remark-html';
 
-// Import all models to ensure they're registered
-import "../models/User";
-import BlogPost from "../models/BlogPost";
-import WikiArticle from "../models/WikiArticle";
-
-// Ensure all models are registered before use
-async function ensureModelsRegistered() {
-  await connectToDatabase();
-  // Additional initialization if needed
-}
-
 export async function getAllBlogPosts() {
-  await ensureModelsRegistered();
-  
-  const posts = await BlogPost.find()
-    .sort({ createdAt: -1 })
-    .populate("author", "name")
-    .lean();
-  
+  const { data: posts, error } = await supabase
+    .from('blog_posts')
+    .select(`
+      *,
+      author:users!author_id(name)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
   return posts;
 }
 
 export async function getBlogPostBySlug(slug) {
-  await ensureModelsRegistered();
-  
-  const post = await BlogPost.findOne({ slug })
-    .populate("author", "name")
-    .lean();
-  
+  const { data: post, error } = await supabase
+    .from('blog_posts')
+    .select(`
+      *,
+      author:users!author_id(name)
+    `)
+    .eq('slug', slug)
+    .single();
+
+  if (error) throw error;
   return post;
 }
 
 export async function getAllWikiArticles() {
-  await ensureModelsRegistered();
-  
-  const articles = await WikiArticle.find()
-    .sort({ category: 1, title: 1 })
-    .populate("author", "name")
-    .lean();
-  
+  const { data: articles, error } = await supabase
+    .from('wiki_articles')
+    .select(`
+      *,
+      author:users!author_id(name)
+    `)
+    .order('category', { ascending: true })
+    .order('title', { ascending: true });
+
+  if (error) throw error;
   return articles;
 }
 
 export async function getWikiArticleBySlug(slug) {
-  await ensureModelsRegistered();
-  
-  const article = await WikiArticle.findOne({ slug })
-    .populate("author", "name")
-    .lean();
-  
+  const { data: article, error } = await supabase
+    .from('wiki_articles')
+    .select(`
+      *,
+      author:users!author_id(name)
+    `)
+    .eq('slug', slug)
+    .single();
+
+  if (error) throw error;
   return article;
 }
 
 export async function getWikiCategories() {
-  await ensureModelsRegistered();
-  
-  const categories = await WikiArticle.aggregate([
-    { $match: { published: true } },
-    { $group: { _id: "$category", count: { $sum: 1 } } },
-    { $sort: { _id: 1 } }
-  ]);
-  
-  return categories.map(cat => ({
-    name: cat._id,
-    count: cat.count
-  }));
+  const { data: articles, error } = await supabase
+    .from('wiki_articles')
+    .select('category')
+    .eq('published', true);
+
+  if (error) throw error;
+
+  // Group by category and count
+  const categoryMap = {};
+  articles.forEach(article => {
+    categoryMap[article.category] = (categoryMap[article.category] || 0) + 1;
+  });
+
+  // Convert to array and sort
+  const categories = Object.entries(categoryMap)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return categories;
 }
 
 // Function to generate slug from title

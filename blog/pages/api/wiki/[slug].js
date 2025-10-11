@@ -1,32 +1,34 @@
 // pages/api/wiki/[slug].js
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]";
-import { connectToDatabase } from "../../../lib/db";
-import WikiArticle from "../../../models/WikiArticle";
+import { supabase } from "../../../lib/supabase";
 import { slugify } from "../../../lib/content";
 
 export default async function handler(req, res) {
   const { slug } = req.query;
-  
+
   // For read operations, allow access without authentication
   if (req.method === "GET") {
-    await connectToDatabase();
-    
     try {
-      // If this is a MongoDB ObjectId, find by ID
-      let article;
-      if (/^[0-9a-fA-F]{24}$/.test(slug)) {
-        article = await WikiArticle.findById(slug)
-          .populate("author", "name")
-          .lean();
+      // Check if it's a UUID
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+
+      let query = supabase
+        .from('wiki_articles')
+        .select(`
+          *,
+          author:users!author_id(name)
+        `);
+
+      if (isUUID) {
+        query = query.eq('id', slug);
       } else {
-        // Otherwise, find by slug
-        article = await WikiArticle.findOne({ slug })
-          .populate("author", "name")
-          .lean();
+        query = query.eq('slug', slug);
       }
 
-      if (!article) {
+      const { data: article, error } = await query.single();
+
+      if (error || !article) {
         return res.status(404).json({ message: "Article not found" });
       }
 
@@ -36,15 +38,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ message: "Server error" });
     }
   }
-  
+
   // For write operations, require admin authentication
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || session.user.role !== "admin") {
     return res.status(401).json({ message: "Not authenticated" });
   }
-
-  await connectToDatabase();
 
   // Update wiki article
   if (req.method === "PUT") {
@@ -56,43 +56,55 @@ export default async function handler(req, res) {
 
     try {
       const newSlug = slugify(title);
-      
+
       // Find the article (either by ID or slug)
-      let article;
-      if (/^[0-9a-fA-F]{24}$/.test(slug)) {
-        article = await WikiArticle.findById(slug);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+
+      let query = supabase.from('wiki_articles').select('*');
+      if (isUUID) {
+        query = query.eq('id', slug);
       } else {
-        article = await WikiArticle.findOne({ slug });
+        query = query.eq('slug', slug);
       }
-      
-      if (!article) {
+
+      const { data: article, error: fetchError } = await query.single();
+
+      if (fetchError || !article) {
         return res.status(404).json({ message: "Article not found" });
       }
-      
+
       // Check if new slug already exists (for another article)
       if (newSlug !== article.slug) {
-        const existingArticle = await WikiArticle.findOne({ 
-          slug: newSlug, 
-          _id: { $ne: article._id } 
-        });
-        
+        const { data: existingArticle } = await supabase
+          .from('wiki_articles')
+          .select('id')
+          .eq('slug', newSlug)
+          .neq('id', article.id)
+          .single();
+
         if (existingArticle) {
           return res.status(422).json({ message: "Article with this title already exists" });
         }
       }
 
       // Update the article
-      article.title = title;
-      article.slug = newSlug;
-      article.content = content;
-      article.category = category;
-      article.tags = tags || [];
-      article.published = published || false;
-      article.updatedAt = Date.now();
-      
-      await article.save();
-      
-      return res.status(200).json(article);
+      const { data: updatedArticle, error: updateError } = await supabase
+        .from('wiki_articles')
+        .update({
+          title,
+          slug: newSlug,
+          content,
+          category,
+          tags: tags || [],
+          published: published || false,
+        })
+        .eq('id', article.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      return res.status(200).json(updatedArticle);
     } catch (error) {
       console.error("Error updating article:", error);
       return res.status(500).json({ message: "Server error" });
@@ -102,14 +114,18 @@ export default async function handler(req, res) {
   // Delete wiki article
   if (req.method === "DELETE") {
     try {
-      let article;
-      if (/^[0-9a-fA-F]{24}$/.test(slug)) {
-        article = await WikiArticle.findByIdAndDelete(slug);
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+
+      let query = supabase.from('wiki_articles').delete();
+      if (isUUID) {
+        query = query.eq('id', slug);
       } else {
-        article = await WikiArticle.findOneAndDelete({ slug });
+        query = query.eq('slug', slug);
       }
 
-      if (!article) {
+      const { error } = await query;
+
+      if (error) {
         return res.status(404).json({ message: "Article not found" });
       }
 

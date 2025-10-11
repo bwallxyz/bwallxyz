@@ -1,27 +1,29 @@
 // pages/api/blog/index.js
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../auth/[...nextauth]";
-import { connectToDatabase } from "../../../lib/db";
-import BlogPost from "../../../models/BlogPost";
+import { supabase } from "../../../lib/supabase";
 import { slugify } from "../../../lib/content";
 
 export default async function handler(req, res) {
   const session = await getServerSession(req, res, authOptions);
-  
+
   if (!session || session.user.role !== "admin") {
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  await connectToDatabase();
-
   // Get all blog posts
   if (req.method === "GET") {
     try {
-      const posts = await BlogPost.find()
-        .sort({ createdAt: -1 })
-        .populate("author", "name")
-        .lean();
-      
+      const { data: posts, error } = await supabase
+        .from('blog_posts')
+        .select(`
+          *,
+          author:users!author_id(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
       return res.status(200).json(posts);
     } catch (error) {
       console.error("Error fetching blog posts:", error);
@@ -39,24 +41,34 @@ export default async function handler(req, res) {
 
     try {
       const slug = slugify(title);
-      
+
       // Check if slug already exists
-      const existingPost = await BlogPost.findOne({ slug });
+      const { data: existingPost } = await supabase
+        .from('blog_posts')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+
       if (existingPost) {
         return res.status(422).json({ message: "Post with this title already exists" });
       }
 
-      const post = new BlogPost({
-        title,
-        slug,
-        content,
-        excerpt: excerpt || content.substring(0, 150) + "...",
-        tags: tags || [],
-        published: published || false,
-        author: session.user.id,
-      });
+      const { data: post, error } = await supabase
+        .from('blog_posts')
+        .insert([{
+          title,
+          slug,
+          content,
+          excerpt: excerpt || content.substring(0, 150) + "...",
+          tags: tags || [],
+          published: published || false,
+          author_id: session.user.id,
+        }])
+        .select()
+        .single();
 
-      await post.save();
+      if (error) throw error;
+
       return res.status(201).json(post);
     } catch (error) {
       console.error("Error creating blog post:", error);

@@ -1,6 +1,5 @@
 // pages/api/auth/register.js
-import { connectToDatabase } from "../../../lib/db";
-import User from "../../../models/User";
+import { supabase } from "../../../lib/supabase";
 import { hash } from "bcryptjs";
 
 export default async function handler(req, res) {
@@ -42,19 +41,14 @@ export default async function handler(req, res) {
       return res.status(422).json({ message: "Password must be at least 6 characters" });
     }
 
-    // Connect to database
-    console.log("Connecting to database...");
-    try {
-      await connectToDatabase();
-      console.log("Connected to database successfully");
-    } catch (dbError) {
-      console.error("Database connection error:", dbError);
-      return res.status(500).json({ message: "Failed to connect to database" });
-    }
-
     // Check if user already exists
     console.log("Checking if user exists:", email);
-    const existingUser = await User.findOne({ email });
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
     if (existingUser) {
       console.log("User already exists");
       return res.status(422).json({ message: "User with this email already exists" });
@@ -66,30 +60,41 @@ export default async function handler(req, res) {
 
     // Create the first user as admin, subsequent users as regular users
     console.log("Counting users...");
-    const userCount = await User.countDocuments({});
-    const role = userCount === 0 ? "admin" : "user";
-    console.log(`User will be created with role: ${role} (${userCount} existing users)`);
+    const { count } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true });
+
+    const role = count === 0 ? "admin" : "user";
+    console.log(`User will be created with role: ${role} (${count} existing users)`);
 
     // Create new user
     console.log("Creating user...");
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role,
-    });
+    const { data: user, error } = await supabase
+      .from('users')
+      .insert([{
+        name,
+        email,
+        password: hashedPassword,
+        role,
+      }])
+      .select()
+      .single();
 
-    await user.save();
-    console.log("User created successfully:", user._id);
-    
+    if (error) {
+      console.error("User creation error:", error);
+      return res.status(500).json({ message: "Failed to create user", error: error.message });
+    }
+
+    console.log("User created successfully:", user.id);
+
     // Return success
     return res.status(201).json({ message: "User created successfully", success: true });
   } catch (error) {
     console.error("Registration error:", error);
-    return res.status(500).json({ 
-      message: "Server error during registration", 
+    return res.status(500).json({
+      message: "Server error during registration",
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 }

@@ -1,6 +1,5 @@
 // pages/api/blog/published.js
-import { connectToDatabase } from "../../../lib/db";
-import BlogPost from "../../../models/BlogPost";
+import { supabase } from "../../../lib/supabase";
 
 export default async function handler(req, res) {
   // Only allow GET requests
@@ -9,13 +8,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    await connectToDatabase();
-    
-    const posts = await BlogPost.find({ published: true })
-      .sort({ createdAt: -1 })
-      .populate("author", "name")
-      .lean();
-    
+    const { data: posts, error } = await supabase
+      .from('blog_posts')
+      .select(`
+        *,
+        author:users!author_id(name)
+      `)
+      .eq('published', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
     return res.status(200).json(posts);
   } catch (error) {
     console.error("Error fetching published blog posts:", error);

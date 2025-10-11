@@ -28,49 +28,49 @@ techblog/
 - **Frontend**: Next.js, React, Tailwind CSS
 - **Authentication**: NextAuth.js
 - **Content**: MDX for Markdown with components
-- **Database**: MongoDB with Mongoose
+- **Database**: Supabase (PostgreSQL)
 - **Deployment**: Vercel (recommended)
 
 ## Getting Started
 
-Follow the setup instructions below to get your blog and wiki platform up and running.
+### Local Development
 
- Setting up your Next.js Blog & Wiki Platform
-
-## 1. Create a new Next.js project
+1. **Clone the repository**
 
 ```bash
-npx create-next-app@latest techblog
-cd techblog
+git clone <your-repo-url>
+cd bwallxyz/blog
 ```
 
-## 2. Install dependencies
+2. **Install dependencies**
 
 ```bash
-npm install next-auth mongoose bcryptjs gray-matter remark remark-html @tailwindcss/typography date-fns next-mdx-remote swr
+npm install
 ```
 
-## 3. Set up Tailwind CSS (if not included by default)
+3. **Set up Supabase**
 
-```bash
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-```
+- Create a free account at [Supabase](https://supabase.com)
+- Create a new project
+- Run the SQL schema from `supabase/schema.sql` in the Supabase SQL Editor
 
-## 4. Create MongoDB Atlas cluster
+4. **Configure environment variables**
 
-1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free account and set up a cluster
-3. Create a database user and get your connection string
-4. Create a `.env.local` file in your project root with:
+Create a `.env.local` file in the `blog` directory:
 
-```
-MONGODB_URI=your_mongodb_connection_string
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXTAUTH_SECRET=your_nextauth_secret_key
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-## 5. Start the development server
+Generate a secure `NEXTAUTH_SECRET`:
+```bash
+openssl rand -base64 32
+```
+
+5. **Start the development server**
 
 ```bash
 npm run dev
