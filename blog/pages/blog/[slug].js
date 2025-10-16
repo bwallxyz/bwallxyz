@@ -4,7 +4,7 @@ import Layout from '../../components/Layout';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { getBlogPostBySlug, markdownToMdx } from '../../lib/content';
+import { getAllBlogPosts, getBlogPostBySlug, markdownToMdx } from '../../lib/content';
 
 export default function BlogPost({ post, mdxContent }) {
   // If we have server-side props, use them
@@ -89,7 +89,7 @@ export default function BlogPost({ post, mdxContent }) {
         <h1 className="text-3xl md:text-4xl font-bold mb-4">{postData.title}</h1>
         
         <div className="flex items-center text-gray-600 mb-8">
-          <span>{format(new Date(postData.createdAt), 'MMMM d, yyyy')}</span>
+          <span>{format(new Date(postData.created_at), 'MMMM d, yyyy')}</span>
           {postData.author && (
             <>
               <span className="mx-2">•</span>
@@ -97,13 +97,13 @@ export default function BlogPost({ post, mdxContent }) {
             </>
           )}
         </div>
-        
-        {postData.coverImage && (
+
+        {postData.cover_image && (
           <div className="mb-8">
-            <img 
-              src={postData.coverImage} 
+            <img
+              src={postData.cover_image}
               alt={postData.title}
-              className="w-full h-auto rounded-lg" 
+              className="w-full h-auto rounded-lg"
             />
           </div>
         )}
@@ -139,27 +139,23 @@ export default function BlogPost({ post, mdxContent }) {
 export async function getStaticProps({ params }) {
   try {
     const post = await getBlogPostBySlug(params.slug);
-    
+
     if (!post || !post.published) {
       return {
         notFound: true,
       };
     }
 
-    // Serialize MongoDB document
+    // Serialize post for Supabase
     const serializedPost = {
       ...post,
-      _id: post._id.toString(),
-      author: post.author ? {
-        ...post.author,
-        _id: post.author._id ? post.author._id.toString() : null
-      } : null,
-      createdAt: post.createdAt.toString(),
-      updatedAt: post.updatedAt.toString()
+      // Ensure dates are strings
+      created_at: post.created_at ? new Date(post.created_at).toISOString() : new Date().toISOString(),
+      updated_at: post.updated_at ? new Date(post.updated_at).toISOString() : new Date().toISOString(),
     };
 
     const mdxContent = await markdownToMdx(post.content);
-    
+
     return {
       props: {
         post: serializedPost,
@@ -200,6 +196,3 @@ export async function getStaticPaths() {
     };
   }
 }
-
-// Import this at the top
-import { getAllBlogPosts } from '../../lib/content';

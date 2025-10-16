@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd blog && npm install && npm run build",
-  "outputDirectory": "blog/.next",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd blog && npm run build",
   "installCommand": "cd blog && npm install",
   "framework": "nextjs"
 }

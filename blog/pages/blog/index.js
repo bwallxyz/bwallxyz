@@ -67,7 +67,7 @@ export default function BlogIndex({ initialPosts }) {
         ) : (
           <div className="grid md:grid-cols-2 gap-8 mb-12">
             {posts.map(post => (
-              <BlogCard key={post._id} post={post} />
+              <BlogCard key={post.id} post={post} />
             ))}
           </div>
         )}
@@ -79,21 +79,17 @@ export default function BlogIndex({ initialPosts }) {
 export async function getStaticProps() {
   try {
     const posts = await getAllBlogPosts();
-    
-    // Serialize MongoDB ObjectIds to strings
+
+    // Filter and serialize posts for Supabase
     const serializedPosts = posts
       .filter(post => post.published)
       .map(post => ({
         ...post,
-        _id: post._id.toString(),
-        author: post.author ? {
-          ...post.author,
-          _id: post.author._id ? post.author._id.toString() : null
-        } : null,
-        createdAt: post.createdAt.toString(),
-        updatedAt: post.updatedAt.toString()
+        // Ensure dates are strings
+        created_at: post.created_at ? new Date(post.created_at).toISOString() : new Date().toISOString(),
+        updated_at: post.updated_at ? new Date(post.updated_at).toISOString() : new Date().toISOString(),
       }));
-    
+
     return {
       props: {
         initialPosts: serializedPosts || [],

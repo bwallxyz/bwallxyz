@@ -150,7 +150,7 @@ function WikiArticlePage({ article: initialArticle, mdxContent: initialContent, 
         <h1 className="text-3xl md:text-4xl font-bold mb-4">{article.title}</h1>
         
         <div className="flex items-center text-gray-600 mb-8">
-          <span>Updated: {format(new Date(article.updatedAt), 'MMMM d, yyyy')}</span>
+          <span>Updated: {format(new Date(article.updated_at), 'MMMM d, yyyy')}</span>
           {article.author && (
             <>
               <span className="mx-2">•</span>
@@ -281,12 +281,12 @@ function WikiCategoryPage({ initialArticles, initialCategories, category }) {
               <div>
                 <ul className="space-y-4">
                   {articles.map(article => (
-                    <li key={article._id} className="bg-white shadow-sm rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <li key={article.id} className="bg-white shadow-sm rounded-lg p-4 hover:shadow-md transition-shadow">
                       <Link href={`/wiki/${article.slug}`} className="block">
                         <h3 className="text-lg font-medium text-gray-900 hover:text-indigo-600">
                           {article.title}
                         </h3>
-                        {article.tags.length > 0 && (
+                        {article.tags && article.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {article.tags.map(tag => (
                               <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
@@ -401,12 +401,12 @@ function WikiIndexPage({ initialArticles, initialCategories }) {
                   </h2>
                   <ul className="space-y-3">
                     {articlesByCategory[category].map(article => (
-                      <li key={article._id} className="bg-white shadow-sm rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <li key={article.id} className="bg-white shadow-sm rounded-lg p-4 hover:shadow-md transition-shadow">
                         <Link href={`/wiki/${article.slug}`} className="block">
                           <h3 className="text-lg font-medium text-gray-900 hover:text-indigo-600">
                             {article.title}
                           </h3>
-                          {article.tags.length > 0 && (
+                          {article.tags && article.tags.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-1">
                               {article.tags.map(tag => (
                                 <span key={tag} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">
@@ -433,31 +433,19 @@ export async function getStaticProps({ params }) {
   try {
     const { path } = params || { path: [] };
     
-    // Helper function to serialize MongoDB documents
-    const serializeMongoDoc = (doc) => {
+    // Helper function to serialize Supabase documents
+    const serializeSupabaseDoc = (doc) => {
       if (!doc) return null;
-      
+
       const serialized = { ...doc };
-      
-      // Convert ObjectIds to strings
-      if (serialized._id) 
-        serialized._id = serialized._id.toString();
-      
-      // Convert Date objects to strings
-      if (serialized.createdAt) 
-        serialized.createdAt = serialized.createdAt.toString();
-      
-      if (serialized.updatedAt) 
-        serialized.updatedAt = serialized.updatedAt.toString();
-      
-      // Handle nested author object
-      if (serialized.author && typeof serialized.author === 'object') {
-        serialized.author = {
-          ...serialized.author,
-          _id: serialized.author._id ? serialized.author._id.toString() : null
-        };
-      }
-      
+
+      // Ensure dates are ISO strings
+      if (serialized.created_at)
+        serialized.created_at = new Date(serialized.created_at).toISOString();
+
+      if (serialized.updated_at)
+        serialized.updated_at = new Date(serialized.updated_at).toISOString();
+
       return serialized;
     };
     
@@ -468,7 +456,7 @@ export async function getStaticProps({ params }) {
       
       const serializedArticles = articles
         .filter(article => article.published)
-        .map(serializeMongoDoc);
+        .map(serializeSupabaseDoc);
       
       return {
         props: {
@@ -492,7 +480,7 @@ export async function getStaticProps({ params }) {
         article.category.toLowerCase() === categoryName.toLowerCase()
       );
       
-      const serializedArticles = articles.map(serializeMongoDoc);
+      const serializedArticles = articles.map(serializeSupabaseDoc);
       
       return {
         props: {
@@ -515,7 +503,7 @@ export async function getStaticProps({ params }) {
       }
 
       const mdxContent = await markdownToMdx(article.content);
-      const serializedArticle = serializeMongoDoc(article);
+      const serializedArticle = serializeSupabaseDoc(article);
       
       return {
         props: {
