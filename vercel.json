@@ -3,10 +3,5 @@
   "buildCommand": "cd blog && npm run build",
   "outputDirectory": "blog/.next",
   "installCommand": "cd blog && npm install",
-  "framework": "nextjs",
-  "functions": {
-    "blog/pages/api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "nextjs"
 }
